@@ -29,6 +29,7 @@ under the License.
     <extend-entity entity-name="OrderHeader" package="org.apache.ofbiz.order.order">
         <field name="expireDate" type="date-time"><description>Expire Date</description></field>
         <field name="localeString" type="text-short"></field>
+        <field name="billToPartyId" type="id"></field>
         <field name="customerClassificationId" type="id"></field>
         <field name="presentmentCurrencyUom" type="id"></field>
         <field name="autoApprove" type="text-indicator"></field>
@@ -38,6 +39,9 @@ under the License.
         </relationship>
         <relationship type="one" fk-name="ORDER_HDR_PCUOM" related="moqui.basic.Uom">
             <key-map field-name="presentmentCurrencyUom" related="uomId"/>
+        </relationship>
+        <relationship type="one" fk-name="ORD_BILL_TO" title="BillTo" related="org.apache.ofbiz.party.party.Party">
+            <key-map field-name="billToPartyId" related="partyId"/>
         </relationship>
         <index name="ORD_CUSTCLASS_ENUM">
             <index-field name="customerClassificationId"/>
@@ -165,6 +169,7 @@ under the License.
         <field name="isTrackingRequired" type="text-indicator"></field>
         <field name="referenceNumber" type="text-medium"></field>
         <field name="actualCarrierCode" type="id"></field>
+        <field name="gatewayRateId" type="id"></field>
     </extend-entity>
     <extend-entity entity-name="ProductCategory" package="org.apache.ofbiz.product.category">
         <field name="productCategoryUrlName" type="text-medium"><description>Category name to be used in URL on store front</description></field>
@@ -227,6 +232,10 @@ under the License.
         <field name="isInstallationProduct" type="text-indicator"><description>Set Y if product is installable.</description></field>
         <field name="requireInspection" type="text-indicator"><description>Set Y if product require inspection.By default product requires inspection</description></field>
         <field name="lastIndexedDateTime" type="date-time"><description>Last date time when the product get indexed</description></field>
+        <field name="primaryProductStoreId" type="id"/>
+        <relationship type="one" related="org.apache.ofbiz.product.store.ProductStore" fk-name="PROD_PRODUCT_STORE">
+            <key-map field-name="primaryProductStoreId" related="productStoreId"/>
+        </relationship>
     </extend-entity>
     <extend-entity entity-name="ProductCategoryMember" package="org.apache.ofbiz.product.category">
         <field name="promiseDate" type="date-time"></field>
@@ -250,7 +259,7 @@ under the License.
         <field name="salesVelocity" type="number-decimal"></field>
         <field name="requirementMethodEnumId" type="id"></field>
         <field name="computedLastInventoryCount" type="number-decimal"><description>This field represents computed last inventory count (availableToPromiseTotal - minimumStock) of a product at a certain point of time
-                if availableToPromiseTotal &lt;= minimumStock it will set as 0</description></field>
+                if availableToPromiseTotal <= minimumStock it will set as 0</description></field>
         <field name="allowBrokering" type="text-indicator"></field>
         <field name="inventoryItemId" type="id"></field>
         <field name="reorderPoint" type="number-decimal"></field>
@@ -267,6 +276,10 @@ under the License.
         <field name="orderItemSeqId" type="id"></field>
         <field name="quantity" type="number-decimal"></field>
         <field name="productId" type="id"></field>
+        <field name="sourceId" type="id"></field>
+        <field name="sourceReferenceId" type="id-long"></field>
+        <field name="returnId" type="id"></field>
+        <field name="returnItemSeqId" type="id"></field>
         <relationship type="one-nofk" fk-name="INV_XFER_ODR" related="org.apache.ofbiz.order.order.OrderHeader">
             <key-map field-name="orderId"/>
         </relationship>
@@ -277,6 +290,9 @@ under the License.
         <relationship type="one-nofk" fk-name="INV_XFER_PRO" related="org.apache.ofbiz.product.product.Product">
             <key-map field-name="productId"/>
         </relationship>
+        <index name="INV_XFER_SRC_REF">
+            <index-field name="sourceReferenceId"/>
+        </index>
     </extend-entity>
     <extend-entity entity-name="FacilityContent" package="org.apache.ofbiz.product.facility">
         <field name="facilityContentTypeEnumId" type="id"></field>
@@ -289,7 +305,29 @@ under the License.
         <relationship type="one" fk-name="CHANGE_REASON" title="Change Reason" related="moqui.basic.Enumeration">
             <key-map field-name="changeReasonEnumId" related="enumId"/>
         </relationship>
+        <index name="IDX_OS_DATETIME">
+            <index-field name="orderId"/>
+            <index-field name="orderItemSeqId"/>
+            <index-field name="statusDatetime"/>
+        </index>
     </extend-entity>
+    <entity entity-name="ProductStoreContactMech" package="co.hotwax.product.store">
+        <field name="productStoreId" type="id" is-pk="true"></field>
+        <field name="contactMechId" type="id" is-pk="true"></field>
+        <field name="productStoreContactMechPurposeTypeId" type="id" is-pk="true"></field>
+        <field name="fromDate" type="date-time" is-pk="true"></field>
+        <field name="thruDate" type="date-time"></field>
+        <relationship type="one" fk-name="PSCM_PRD_STR" related="org.apache.ofbiz.product.store.ProductStore">
+            <key-map field-name="productStoreId"/>
+        </relationship>
+        <relationship type="one" fk-name="PSCM_CM" related="org.apache.ofbiz.party.contact.ContactMech">
+            <key-map field-name="contactMechId"/>
+        </relationship>
+        <relationship type="one" fk-name="PSCM_ENUM" related="moqui.basic.Enumeration">
+            <key-map field-name="productStoreContactMechPurposeTypeId" related="enumId"/>
+        </relationship>
+    </entity>
+    <!-- TODO: skipped element view-entity -->
     <entity entity-name="ReturnNote" package="co.hotwax.customerservice.return" cache="never">
         <field name="returnId" type="id" is-pk="true"></field>
         <field name="noteId" type="id" is-pk="true"></field>
@@ -316,6 +354,7 @@ under the License.
         <field name="importPath" type="text-medium" enable-audit-log="true"></field>
         <field name="exportPath" type="text-medium" enable-audit-log="true"></field>
         <field name="priority" type="number-integer"></field>
+        <field name="enableDataFeed" type="text-indicator" enable-audit-log="true" default="N"></field>
         <relationship type="one" fk-name="DTMGR_CONF_ENM" title="DMC_EXEC_MODE" related="moqui.basic.Enumeration">
             <key-map field-name="executionModeId" related="enumId"/>
         </relationship>
@@ -334,7 +373,7 @@ under the License.
         <field name="finishDateTime" type="date-time"></field>
         <field name="cancelDateTime" type="date-time"></field>
         <field name="jobId" type="id"></field>
-        <field name="statusId" type="id"></field>
+        <field name="statusId" type="id" enable-audit-log="true"></field>
         <field name="errorRecordContentId" type="id"></field>
         <field name="logFileContentId" type="id"></field>
         <field name="runtimeDataId" type="id"></field>
@@ -406,7 +445,6 @@ under the License.
             <key-map field-name="shipmentMethodTypeId"/>
         </relationship>
     </entity>
-    
     <entity entity-name="UserSearchPreferenceType" package="co.hotwax.party.party">
         <field name="userSearchPrefTypeId" type="id" is-pk="true"></field>
         <field name="description" type="text-medium"></field>
@@ -496,6 +534,7 @@ under the License.
     <extend-entity entity-name="OrderItemChange" package="org.apache.ofbiz.order.order">
         <field name="productId" type="id"></field>
         <field name="estimatedDeliveryDate" type="date-time"></field>
+        <field name="changedByUserId" type="id"/>
     </extend-entity>
     <entity entity-name="RequirementInventoryTransfer" package="co.hotwax.facility">
         <field name="requirementId" type="id" is-pk="true"></field>
@@ -755,7 +794,8 @@ under the License.
     </extend-entity>
     <extend-entity entity-name="ProductStoreEmailSetting" package="org.apache.ofbiz.product.store">
         <field name="systemMessageRemoteId" type="id"></field>
-        <relationship type="one" fk-name="SYS_MSG_RMT" related="moqui.service.message.SystemMessageRemote">
+        <field name="gatewayAuthId" type="id"><description>References the Unigate CommGatewayAuth entity that stores gateway authentication details</description></field>
+        <relationship type="one-nofk" fk-name="SYS_MSG_RMT" related="moqui.service.message.SystemMessageRemote">
             <key-map field-name="systemMessageRemoteId" related="systemMessageRemoteId"/>
         </relationship>
     </extend-entity>
@@ -1287,6 +1327,23 @@ under the License.
         </relationship>
         <relationship type="one" fk-name="PSTS_PS_PRDS" related="org.apache.ofbiz.product.store.ProductStore">
             <key-map field-name="productStoreId"/>
+        </relationship>
+    </entity>
+    <entity entity-name="ExternalOrderSyncHistory" package="co.hotwax.integration">
+        <field name="orderSyncId" type="id" is-pk="true"></field>
+        <field name="orderId" type="id"></field>
+        <field name="externalSystemId" type="id"></field>
+        <field name="syncDate" type="date-time"></field>
+    </entity>
+    <entity entity-name="ProductStoreProduct" package="co.hotwax.oms.product">
+        <field name="productStoreId" type="id" is-pk="true"/>
+        <field name="productId" type="id" is-pk="true"/>
+        <field name="createdDate" type="date-time"/>
+        <relationship type="one" related="org.apache.ofbiz.product.store.ProductStore" fk-name="PSP_PRODUCT_STORE">
+            <key-map field-name="productStoreId"/>
+        </relationship>
+        <relationship type="one" related="org.apache.ofbiz.product.product.Product" fk-name="PSP_PRODUCT">
+            <key-map field-name="productId"/>
         </relationship>
     </entity>
 </entities>
